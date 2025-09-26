@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog Psychédélique</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Blog Psychédélique</h1>
+    <div id="user-section">
+      <!-- Formulaire login / logout sera injecté ici -->
+    </div>
+  </header>
+
+  <main>
+    <!-- Section pour créer un post (admin seulement) -->
+    <section id="admin-section" class="hidden">
+      <h2>Publier un article</h2>
+      <form id="post-form">
+        <input type="text" id="post-title" placeholder="Titre">
+        <textarea id="post-content" placeholder="Contenu"></textarea>
+        <button type="submit">Publier</button>
+      </form>
+    </section>
+
+    <!-- Section des posts -->
+    <section id="posts-section">
+      <h2>Articles</h2>
+      <div id="posts-container">
+        <!-- Les posts seront injectés ici via JS -->
+      </div>
+    </section>
+  </main>
+
+  <template id="post-template">
+    <div class="post">
+      <h3 class="post-title"></h3>
+      <p class="post-content"></p>
+
+      <!-- Formulaire de commentaire -->
+      <div class="comments-section">
+        <h4>Commentaires</h4>
+        <div class="comments-container"></div>
+        <form class="comment-form">
+          <textarea class="comment-content" placeholder="Écrire un commentaire..."></textarea>
+          <button type="submit">Envoyer</button>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
