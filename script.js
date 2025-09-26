@@ -3,12 +3,12 @@ const apiUrl = "https://blog-psy-backend.onrender.com/api";
 let token = null;
 let role = null;
 
-// Section utilisateur
+// Sections HTML
 const userSection = document.getElementById("user-section");
 const adminSection = document.getElementById("admin-section");
 const postsContainer = document.getElementById("posts-container");
 
-// --- Fonctions de login/register ---
+// --- LOGIN / REGISTER ---
 function renderLoginForm() {
   userSection.innerHTML = `
     <form id="login-form">
@@ -23,25 +23,21 @@ function renderLoginForm() {
     e.preventDefault();
     const username = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
+
     try {
       const res = await fetch(`${apiUrl}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
-
-      if (!res.ok) {
-        alert("Login échoué");
-        return;
-      }
-
+      if (!res.ok) return alert("Login échoué");
       const data = await res.json();
       token = data.token;
       role = data.role;
       renderUserSection();
       loadPosts();
     } catch (err) {
-      console.error("Erreur login:", err);
+      console.error(err);
       alert("Impossible de se connecter au serveur");
     }
   });
@@ -70,16 +66,11 @@ function renderRegisterForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
-
-      if (!res.ok) {
-        alert("Inscription échouée");
-        return;
-      }
-
+      if (!res.ok) return alert("Inscription échouée");
       alert("Inscription réussie !");
       renderLoginForm();
     } catch (err) {
-      console.error("Erreur register:", err);
+      console.error(err);
       alert("Impossible de se connecter au serveur");
     }
   });
@@ -87,7 +78,7 @@ function renderRegisterForm() {
   document.getElementById("show-login").addEventListener("click", renderLoginForm);
 }
 
-// --- Afficher section user et admin ---
+// --- SECTION USER / ADMIN ---
 function renderUserSection() {
   userSection.innerHTML = `
     <span>Connecté (${role})</span>
@@ -102,7 +93,7 @@ function renderUserSection() {
   adminSection.classList.toggle("hidden", role !== "admin");
 
   if (role === "admin") {
-    // Attacher le submit du formulaire admin
+    // Formulaire publier post
     document.getElementById("post-form")?.addEventListener("submit", async e => {
       e.preventDefault();
       const title = document.getElementById("post-title").value;
@@ -111,30 +102,22 @@ function renderUserSection() {
       try {
         const res = await fetch(`${apiUrl}/posts`, {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": token
-          },
+          headers: { "Content-Type": "application/json", "Authorization": token },
           body: JSON.stringify({ title, content })
         });
-
-        if (!res.ok) {
-          alert("Impossible de publier l'article");
-          return;
-        }
-
+        if (!res.ok) return alert("Impossible de publier l'article");
         document.getElementById("post-title").value = "";
         document.getElementById("post-content").value = "";
         loadPosts();
       } catch (err) {
-        console.error("Erreur publier post:", err);
+        console.error(err);
         alert("Impossible de se connecter au serveur");
       }
     });
   }
 }
 
-// --- Charger les posts et commentaires ---
+// --- CHARGER POSTS + COMMENTAIRES ---
 async function loadPosts() {
   postsContainer.innerHTML = "";
   try {
@@ -151,52 +134,74 @@ async function loadPosts() {
       const commentForm = clone.querySelector(".comment-form");
       const commentsContainer = clone.querySelector(".comments-container");
 
+      // --- Soumettre un commentaire ---
       commentForm.addEventListener("submit", async e => {
         e.preventDefault();
         const content = commentForm.querySelector(".comment-content").value;
-
         try {
           const res = await fetch(`${apiUrl}/comments/${post.id}`, {
             method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Authorization": token
-            },
+            headers: { "Content-Type": "application/json", "Authorization": token },
             body: JSON.stringify({ content })
           });
-
-          if (!res.ok) {
-            alert("Impossible de commenter");
-            return;
-          }
-
+          if (!res.ok) return alert("Impossible de commenter");
           commentForm.querySelector(".comment-content").value = "";
           loadPosts();
         } catch (err) {
-          console.error("Erreur commentaire:", err);
+          console.error(err);
           alert("Impossible de se connecter au serveur");
         }
       });
 
-      // Charger les commentaires
+      // --- Charger les commentaires ---
       fetch(`${apiUrl}/comments/${post.id}`)
         .then(res => res.json())
         .then(comments => {
           commentsContainer.innerHTML = "";
           comments.forEach(c => {
             const div = document.createElement("div");
-            div.textContent = c.content;
+            div.innerHTML = `<strong>${c.username}</strong><br>${c.content}`;
             commentsContainer.appendChild(div);
           });
         });
 
+      // --- Boutons admin pour modifier/supprimer post ---
+      if (role === "admin") {
+        const adminControls = document.createElement("div");
+        adminControls.innerHTML = `
+          <button class="edit-post">Modifier</button>
+          <button class="delete-post">Supprimer</button>
+        `;
+
+        adminControls.querySelector(".edit-post").addEventListener("click", () => {
+          const newTitle = prompt("Nouveau titre", post.title);
+          const newContent = prompt("Nouveau contenu", post.content);
+          if (!newTitle || !newContent) return;
+          fetch(`${apiUrl}/posts/${post.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "Authorization": token },
+            body: JSON.stringify({ title: newTitle, content: newContent })
+          }).then(() => loadPosts());
+        });
+
+        adminControls.querySelector(".delete-post").addEventListener("click", () => {
+          if (!confirm("Supprimer cet article ?")) return;
+          fetch(`${apiUrl}/posts/${post.id}`, {
+            method: "DELETE",
+            headers: { "Authorization": token }
+          }).then(() => loadPosts());
+        });
+
+        clone.querySelector(".post-content").after(adminControls);
+      }
+
       postsContainer.appendChild(clone);
     });
   } catch (err) {
-    console.error("Erreur charger posts:", err);
+    console.error(err);
   }
 }
 
-// --- Initialisation ---
+// --- INITIALISATION ---
 renderLoginForm();
 loadPosts();
