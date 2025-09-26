@@ -1,4 +1,4 @@
-const apiUrl = "https://blog-psy-backend.onrender.com";
+const apiUrl = "https://blog-psy-backend.onrender.com/api";
 let token = null;
 let role = null;
 
