@@ -1,3 +1,4 @@
+// URL du backend Render
 const apiUrl = "https://blog-psy-backend.onrender.com/api";
 let token = null;
 let role = null;
@@ -22,19 +23,26 @@ function renderLoginForm() {
     e.preventDefault();
     const username = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
-    const res = await fetch(`${apiUrl}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (data.token) {
+    try {
+      const res = await fetch(`${apiUrl}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        alert("Login échoué");
+        return;
+      }
+
+      const data = await res.json();
       token = data.token;
       role = data.role;
       renderUserSection();
       loadPosts();
-    } else {
-      alert("Login échoué");
+    } catch (err) {
+      console.error("Erreur login:", err);
+      alert("Impossible de se connecter au serveur");
     }
   });
 
@@ -55,13 +63,25 @@ function renderRegisterForm() {
     e.preventDefault();
     const username = document.getElementById("register-username").value;
     const password = document.getElementById("register-password").value;
-    await fetch(`${apiUrl}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    alert("Inscription réussie !");
-    renderLoginForm();
+
+    try {
+      const res = await fetch(`${apiUrl}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        alert("Inscription échouée");
+        return;
+      }
+
+      alert("Inscription réussie !");
+      renderLoginForm();
+    } catch (err) {
+      console.error("Erreur register:", err);
+      alert("Impossible de se connecter au serveur");
+    }
   });
 
   document.getElementById("show-login").addEventListener("click", renderLoginForm);
@@ -80,64 +100,101 @@ function renderUserSection() {
   });
 
   adminSection.classList.toggle("hidden", role !== "admin");
-}
 
-// --- Publier un post (admin) ---
-document.getElementById("post-form")?.addEventListener("submit", async e => {
-  e.preventDefault();
-  const title = document.getElementById("post-title").value;
-  const content = document.getElementById("post-content").value;
-  await fetch(`${apiUrl}/posts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": token },
-    body: JSON.stringify({ title, content })
-  });
-  document.getElementById("post-title").value = "";
-  document.getElementById("post-content").value = "";
-  loadPosts();
-});
+  if (role === "admin") {
+    // Attacher le submit du formulaire admin
+    document.getElementById("post-form")?.addEventListener("submit", async e => {
+      e.preventDefault();
+      const title = document.getElementById("post-title").value;
+      const content = document.getElementById("post-content").value;
+
+      try {
+        const res = await fetch(`${apiUrl}/posts`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": token
+          },
+          body: JSON.stringify({ title, content })
+        });
+
+        if (!res.ok) {
+          alert("Impossible de publier l'article");
+          return;
+        }
+
+        document.getElementById("post-title").value = "";
+        document.getElementById("post-content").value = "";
+        loadPosts();
+      } catch (err) {
+        console.error("Erreur publier post:", err);
+        alert("Impossible de se connecter au serveur");
+      }
+    });
+  }
+}
 
 // --- Charger les posts et commentaires ---
 async function loadPosts() {
   postsContainer.innerHTML = "";
-  const res = await fetch(`${apiUrl}/posts`);
-  const posts = await res.json();
-  const template = document.getElementById("post-template");
+  try {
+    const res = await fetch(`${apiUrl}/posts`);
+    if (!res.ok) return;
+    const posts = await res.json();
+    const template = document.getElementById("post-template");
 
-  posts.forEach(post => {
-    const clone = template.content.cloneNode(true);
-    clone.querySelector(".post-title").textContent = post.title;
-    clone.querySelector(".post-content").textContent = post.content;
+    posts.forEach(post => {
+      const clone = template.content.cloneNode(true);
+      clone.querySelector(".post-title").textContent = post.title;
+      clone.querySelector(".post-content").textContent = post.content;
 
-    // Formulaire commentaire
-    const commentForm = clone.querySelector(".comment-form");
-    const commentsContainer = clone.querySelector(".comments-container");
-    commentForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const content = commentForm.querySelector(".comment-content").value;
-      await fetch(`${apiUrl}/comments/${post.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ content })
+      const commentForm = clone.querySelector(".comment-form");
+      const commentsContainer = clone.querySelector(".comments-container");
+
+      commentForm.addEventListener("submit", async e => {
+        e.preventDefault();
+        const content = commentForm.querySelector(".comment-content").value;
+
+        try {
+          const res = await fetch(`${apiUrl}/comments/${post.id}`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": token
+            },
+            body: JSON.stringify({ content })
+          });
+
+          if (!res.ok) {
+            alert("Impossible de commenter");
+            return;
+          }
+
+          commentForm.querySelector(".comment-content").value = "";
+          loadPosts();
+        } catch (err) {
+          console.error("Erreur commentaire:", err);
+          alert("Impossible de se connecter au serveur");
+        }
       });
-      commentForm.querySelector(".comment-content").value = "";
-      loadPosts();
-    });
 
-    // Charger les commentaires
-    fetch(`${apiUrl}/comments/${post.id}`)
-      .then(res => res.json())
-      .then(comments => {
-        commentsContainer.innerHTML = "";
-        comments.forEach(c => {
-          const div = document.createElement("div");
-          div.textContent = c.content;
-          commentsContainer.appendChild(div);
+      // Charger les commentaires
+      fetch(`${apiUrl}/comments/${post.id}`)
+        .then(res => res.json())
+        .then(comments => {
+          commentsContainer.innerHTML = "";
+          comments.forEach(c => {
+            const div = document.createElement("div");
+            div.textContent = c.content;
+            commentsContainer.appendChild(div);
+          });
         });
-      });
 
-    postsContainer.appendChild(clone);
-  });
+      postsContainer.appendChild(clone);
+    });
+  } catch (err) {
+    console.error("Erreur charger posts:", err);
+  }
 }
 
 // --- Initialisation ---
