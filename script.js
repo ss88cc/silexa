@@ -1,4 +1,4 @@
-const apiUrl = "http://localhost:3000/api";
+const apiUrl = "https://blog-psy-backend.onrender.com";
 let token = null;
 let role = null;
 
